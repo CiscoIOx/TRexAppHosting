@@ -1,40 +1,34 @@
 # TRexAppHosting
-This repository contains Cisco TRex application related details on how to run it as an app on Cisco Catalyst 9000 series switches..
+This repository contains Cisco TRex application related details on how to run it as a docker app on Cisco Catalyst 9000 series switches. We will cover a usecase where TRex docker app running on Cat9k will generate multistream traffic on each container network interafaces eth0 (vlan 700) and eth1 (vlan 500) to determine the maximum throughput that can be achieved via AppGigabitEthernet (KR port) interface of Cat9k. 
 
+Note: AppGigabitEthernet is of bandwidth 1 Gbps.
 
+## Pre-Requisites
+* Docker installed on development machine for building docker image
+* Cat9k switch with AppGigabitEthernet interface (KR Port) support
 
-# Goal
-
-Lets deploy TRex as a docker app on Cat9k and have TRex generate multistream traffic on container
-ports eth0 (on vlan 700) and eth1 (on vlan 500) to determine the maximum throughput of Cat9k KR port
-that can be achieved without packet drop.
-
-
-
-## Prerequisites
-Here are the prerequisites needed for TRex Docker app. 
-
-1. Even number of network interfaces inside the container. Here we will use two interfaces (eth0 and eth1) 
-
-2. Additional docker runtime options support: 
+## Build TRex docker app
+Do git clone of this project and run below docker command to build TRex docker image.
 
 ```
---cap-add=NET_ADMIN --ulimit memlock=100000000:100000000
+docker build -t trexapp .
+```
+Now save this docker image to create a tar archive. We will use this saved docker image tar archive for installing
+the TRex application on Cat9k switch.
+
+```
+docker save trexapp -o trexapp.tar
 ```
 
-3. KR port support 
+## Cat9k Device Setup
 
-
-
-## Test setup
+We will setup the Cat9k switch with loopback connectivity for simplified test scenario. Interface and Vlan details are provided here for reference. If you make changes to those specific details, make sure to reflect those changes in rest of those reference in the document as well.
 
 <img width="462" alt="TRex setup" src="https://user-images.githubusercontent.com/7672865/58609433-67b49200-825c-11e9-99e5-4358941b20a5.png">
 
+1. Connect GigE 1/0/23 of Cat9k to GigE 1/0/24 with a loopback cable to route traffic from one port to another.
 
-
-1. Connect GigE 1/0/23 of Cat9k to GigE 1/0/24 with a loopback cable to route traffic from one port to another. 
-
-2. Configure KR port (AppGigabitEthernet1/0/1) in trunk mode and GigE interfaces 1/0/23 (in Vlan 700), GigE 1/0/24 (in Vlan 500) 
+2. Configure AppGigabitEthernet1/0/1 (KR port) in trunk mode and GigE interfaces 1/0/23 (in Vlan 700), GigE 1/0/24 (in Vlan 500). Here is the corresponding IOS configuration.
 
 ```
 interface AppGigabitEthernet1/0/1 
@@ -53,8 +47,11 @@ interface Vlan700
 	ip address 10.0.0.1 255.255.255.0
 ```
 
-3. Configure TRex IOx application activation details.
+## TRex app config setup
 
+TRex app needs even number of network interfaces inside the container. Here we will use two container network interfaces (eth0 and eth1). TRex will generate the traffic on container interfaces eth0 and eth1, which will then routed back to the container on other interfaces like eth1 and eth0 respectively, as per our device setup. We will assign static ip address to container network interfaces eth0 (10.0.1.2) and eth1 (10.0.0.2). In TRex docker image, /etc/trex_cfg_cat9k.yaml is based on these container network interface configuration. 
+
+Here is the corresponding TRex app IOS configuration. 
 ```
 app-hosting appid trex
 	app-vnic AppGigEthernet vlan-access
@@ -64,82 +61,46 @@ app-hosting appid trex
 			guest-ipaddress 10.0.0.2 netmask 255.255.255.0
 		app-default-gateway 10.0.1.1 guest-interface 1 
 		app-resource docker
-			run-opts "--cap-add=NET_ADMIN --ulimit memlock=100000000:100000000 --entrypoint '/bin/sleep 10000'"
+			run-opts "--cap-add=NET_ADMIN --ulimit memlock=100000000:100000000"
 		app-resource package­profile custom app-resource profile custom
 			cpu 7000 
 			memory 2000
 ```
+Use the docker run-opts configuration as it is and don't make any changes.
 
+## **TRex app deployment workflow**
 
+1. **Install saved TRex docker tar archive**
 
-4. Use below trex_cfg.yaml for routing traffic externally from the container as per above test setup
-   diagram. Store this file in usbflash drive of cat9k, lets say the path is **usbflash1:trex_cfg.yaml**
-
-
-
-```
-[ms-p0-31_1_RP_0:/]$ cat /vol/usb1/trex_cfg.yaml
-- port_limit	: 2 
-	version 		: 2
-	low_end 		: true
-	interfaces	:	["eth0", "eth1"]
-	port_info		: # set eh mac addr
--	ip : 10.0.0.2 default_gw : 10.0.1.2
--	ip : 10.0.1.2 default_gw : 10.0.0.2
-```
-
-
-
-
-
-## **IOx TRex app deployment**
-
-
-
-1. **Install TRex package/dockerimage stored in USBFlash:**
+    Copy saved TRex docker image to Cat9k at USBFlash. 
+    
+    Then deploy TRex docker application using below IOS CLI exe command. This operation will extract tar archive and keep the docker image ready for creating the container.
 
    ```
-   # app-hosting install appid trex package usbflash1:<path to trex tar file>
+   # app-hosting install appid trex package usbflash1:<path to trex docker tar file>
    ```
 
-2. **Activate the application with pre­configured resources (refer test setup section #3)**
+2. **Activate the TRex app**
+    
+    Now lets activate the application with pre­configured resources in 'TRex app config setup' section.
 
    ```
    # app-hosting activate appid trex
-   ```
+   ```  
 
-   
-
-3. **Upload the custom trex configuration into trex application under /iox_data/appdata**
-
-   ```
-   # app-hosting data appid trex copy usbflash1:trex_cfg.yaml trex_cfg.yaml
-   ```
-
-   
-
-4. **Start the app**
+3. **Start the app**
 
    ```
    #	app-hosting start appid trex
    ```
-
    
+4. **Get inside application container shell to connect to the trex server console and generate traffic**
 
-5. **Get inside application container shell and start trex manually**
-
+  Here is the IOS CLI exec command to enter container shell.
    ```
-   # app-hosting connect appid trex session
-   // start trex server
-   trex_shell$ ./t-rex-64 -i --cfg /iox_data/appdata/trex_cfg.yaml
-   ```
-
    
-
-6. **Get inside application container shell in another terminal to connect to the trex server console and generate traffic**
-
-   ```
    # app-hosting connect appid trex session
+   
    // Connect to trex server console
    trex_shell$ ./trex-console
    
@@ -148,6 +109,6 @@ app-hosting appid trex
    trex_console> stats
    ```
 
+As you could see my TRex console stats that maximum throughput that was achieved via AppGigabitEthernet interface is 500Mbps on each of the two network interfaces inside the container.
 
-**Maximum throughput (traffic generation rate) observed on each vlan of KR port without packet drop, as per TRex stats = 500Mbps**
 
