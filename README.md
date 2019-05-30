@@ -62,7 +62,8 @@ app-hosting appid trex
 		app-default-gateway 10.0.1.1 guest-interface 1 
 		app-resource docker
 			run-opts "--cap-add=NET_ADMIN --ulimit memlock=100000000:100000000"
-		app-resource package­profile custom app-resource profile custom
+		app-resource package­-profile custom 
+		app-resource profile custom
 			cpu 7000 
 			memory 2000
 ```
@@ -91,7 +92,7 @@ Use the docker run-opts configuration as it is and don't make any changes.
 3. **Start the app**
 
    ```
-   #	app-hosting start appid trex
+   # app-hosting start appid trex
    ```
    
 4. **Get inside application container shell to connect to the trex server console and generate traffic**
