@@ -106,8 +106,13 @@ Use the docker run-opts configuration as it is and don't make any changes.
    trex_shell$ ./trex-console
    
    // start 500Mbps multi stream UDP traffic
-   trex_console> start -f stl/udp_1pkt_multi.py -m 500mbps -a //viewstats
+   trex_console> start -f stl/udp_1pkt_multi.py -m 500mbps -a 
+   
+   //viewstats
    trex_console> stats
+
+  // to stop the traffic generation
+  trex_console> stop
    ```
 
 As you could see my TRex console stats that maximum throughput that was achieved via AppGigabitEthernet interface is 500Mbps on each of the two network interfaces inside the container.
