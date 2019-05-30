@@ -92,7 +92,7 @@ Use the docker run-opts configuration as it is and don't make any changes.
 3. **Start the app**
 
    ```
-   #	app-hosting start appid trex
+   # app-hosting start appid trex
    ```
    
 4. **Get inside application container shell to connect to the trex server console and generate traffic**
