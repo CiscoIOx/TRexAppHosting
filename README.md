@@ -62,7 +62,8 @@ app-hosting appid trex
 		app-default-gateway 10.0.1.1 guest-interface 1 
 		app-resource docker
 			run-opts "--cap-add=NET_ADMIN --ulimit memlock=100000000:100000000"
-		app-resource package­profile custom app-resource profile custom
+		app-resource package­-profile custom 
+		app-resource profile custom
 			cpu 7000 
 			memory 2000
 ```
