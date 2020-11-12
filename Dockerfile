@@ -15,6 +15,7 @@ RUN wget http://trex-tgn.cisco.com/trex/release/v2.85.tar.gz && \
     chown root:root /v2.85  && \
     rm v2.85.tar.gz
 #COPY trex_cfg_cat9k.yaml /etc/trex_cfg_cat9k.yaml
-WORKDIR /trex-xcare
-CMD ["./t-rex-64", "-i"]
+WORKDIR /v2.85
+CMD ["/bin/bash"]
+#CMD ["./t-rex-64", "-i"]
 #CMD ["./t-rex-64", "-i", "--cfg", "/etc/trex_cfg_cat9k.yaml"]
